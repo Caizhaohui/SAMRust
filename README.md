@@ -2,10 +2,11 @@
 
 **面向 Linux / HPC 的 Rust-native、多线程、pysam 兼容 HTS 读写库。**
 
-当前版本 **v0.1.0**（2026-08-13）。Python 3.10–3.13，Linux x86_64。许可证 [MIT](LICENSE)。
+当前版本 **v0.1.1**（2026-08-13）。Python 3.10–3.13，Linux x86_64。许可证 [MIT](LICENSE)。
 
 - 仓库：https://github.com/Caizhaohui/SAMRust
-- Release / wheel：https://github.com/Caizhaohui/SAMRust/releases/tag/v0.1.0
+- Release / wheel：https://github.com/Caizhaohui/SAMRust/releases/tag/v0.1.1
+- v0.1.1 修复与兼容性变更：[CHANGELOG](CHANGELOG.md) / [REVIEW](REVIEW.md) / [COMPATIBILITY](COMPATIBILITY.md)
 
 ---
 
@@ -81,17 +82,17 @@ v0.1 **未发布到 PyPI**。
 
 ### 从 GitHub Release 安装 wheel
 
-打开 [Releases](https://github.com/Caizhaohui/SAMRust/releases/tag/v0.1.0)，按 CPython ABI 选择文件：
+打开 [Releases](https://github.com/Caizhaohui/SAMRust/releases/tag/v0.1.1)，按 CPython ABI 选择文件：
 
 | ABI | 文件名（节选） |
 |-----|----------------|
-| 3.10 | `samrust-0.1.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl` |
+| 3.10 | `samrust-0.1.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl` |
 | 3.11 | `…-cp311-…` |
 | 3.12 | `…-cp312-…` |
 | 3.13 | `…-cp313-…` |
 
 ```bash
-pip install https://github.com/Caizhaohui/SAMRust/releases/download/v0.1.0/samrust-0.1.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+pip install https://github.com/Caizhaohui/SAMRust/releases/download/v0.1.1/samrust-0.1.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
 python -c "import samrust; print(samrust.__version__)"
 ```
 
@@ -163,7 +164,7 @@ bam.fetch("chr1", 100, 200)   # 覆盖参考位置 100, 101, …, 199
 ```python
 bam = samrust.AlignmentFile("sample.bam", "rb")
 # 属性：filename, mode, references, lengths, nreferences, header
-# header 为 dict：nreferences / references / lengths
+# header 为 pysam 风格 dict：HD / SQ（SN/LN）/ RG / PG（v0.1.1 起）
 # 上下文管理器、close()、reset()、顺序 for rec in bam
 ```
 
@@ -179,7 +180,7 @@ bam = samrust.AlignmentFile("sample.bam", "rb")
 | 属性 / 方法 | 含义 |
 |-------------|------|
 | `query_name`, `flag`, `mapping_quality` | QNAME / FLAG / MAPQ（缺省 MAPQ 为 255） |
-| `reference_id`, `reference_name`, `reference_start` | 参考；start 为 0-based |
+| `reference_id`, `reference_name`, `reference_start`, `reference_end` | 参考；start 0-based，end 0-based exclusive（unmapped 为 `None`） |
 | `cigarstring`, `cigartuples` | CIGAR |
 | `query_sequence`, `query_length`, `query_qualities` | 序列与碱基质量 |
 | `next_reference_*`, `template_length` | 配对信息 |
@@ -305,7 +306,7 @@ samrust recount \
 - 无 `AlignmentFile` 写入、无 SAM 文本写、无 `pileup()` 列式迭代器（有 `pileup_counts`）
 - 无独立 `FastaFile` / `TabixFile`
 - CRAM 无 count/depth/coverage/pileup
-- `header` 目前是精简 dict，不是完整 SAM header 对象
+- `header` 是 pysam 风格 dict（HD/SQ/RG/PG），不是可写的完整 SAM header 对象
 - `count_coverage` 的 pysam 默认 `read_callback="all"`；`count` 默认 `"nofilter"`
 
 深度语义与 **samtools depth / rubam `get_depths`** 对齐（M/=/X），不要用 `count_coverage` 之和当 depth oracle。

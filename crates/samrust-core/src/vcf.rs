@@ -171,6 +171,19 @@ impl VariantReader {
         }
     }
 
+    /// Fetch `[start, ∞)` on a contig whose length is unknown from the header.
+    ///
+    /// An unbounded indexed query is not expressible for tabix/CSI (the binning
+    /// scheme caps the end bound), so this always uses a sequential scan.
+    pub fn fetch_from(&self, contig: &str, start: u64) -> Result<Vec<VariantRecord>> {
+        self.header.contig_index(contig)?;
+        Ok(self
+            .records()?
+            .into_iter()
+            .filter(|r| r.chrom == contig && r.stop > start)
+            .collect())
+    }
+
     fn try_indexed_fetch(&self, contig: &str, interval: Interval) -> Result<Vec<VariantRecord>> {
         let region = interval
             .to_noodles_region(contig)?

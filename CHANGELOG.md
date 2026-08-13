@@ -1,5 +1,64 @@
 # Changelog
 
+## 0.1.1 (2026-08-13)
+
+Correctness / performance / compatibility patch from the v0.1 code review
+([REVIEW.md](REVIEW.md)). No coordinate-semantics or stats-algorithm changes.
+
+### Fixed
+
+- `iter_batches`: 1-thread mode returned only the first batch then EOF;
+  multi-thread mode hash-deduplicated away identical records (cat-bam inputs),
+  ignored `batch_size`, and materialized the whole file. Now: 1T streams
+  batch-by-batch; MT processes bounded 1 Mb waves, honors `batch_size`, keeps
+  exact duplicates, and both modes include the unmapped-unplaced tail via
+  BAI pseudo-bin metadata. 1T == NT record-for-record.
+- Re-iterating an `AlignmentFile` mid-stream (`iter(af)`) no longer silently
+  drops records held in the prefetch buffer; iteration continues from the
+  logical position (pysam semantics).
+- `VariantFile.fetch(contig)` returned empty when the header lacked the
+  contig length (`stop.unwrap_or(0)`); unbounded fetch now falls back to a
+  sequential scan.
+- Accessing `header` / `references` / `lengths` / `nreferences` after
+  `close()` raised `PanicException`; now raises `ValueError`.
+- `parallel_fetch` replaced hash-based dedup (2 String allocations per record,
+  collision risk, duplicate loss) with region-merge + start-ownership
+  filtering: overlapping regions are merged first, each record is emitted
+  exactly once per region union, exact duplicates are preserved.
+- Negative `start` / `stop` raised `OverflowError`; now `ValueError` like
+  pysam. `stop` beyond the contig length is clamped (pysam behavior);
+  out-of-range `start` yields empty results.
+
+### Added
+
+- `AlignedSegment.reference_end` (0-based exclusive; `None` for unmapped /
+  empty CIGAR, matching pysam).
+- `AlignmentFile.header` returns a pysam-style dict (`HD` / `SQ` / `RG` /
+  `PG`) instead of a single-line string.
+- B-array tags (`B,c` … `B,i`, `B,f`) round-trip as `array.array` with the
+  original typecode — element- and type-equal to pysam (was: Rust debug text).
+- `tests/parity/test_random_regions.py`: seeded random-region differential
+  test vs pysam (count / fetch / coverage / depth / pileup at threads 1 & 4);
+  fixture mode always runs, real-data mode behind `SAMRUST_REAL_DATA=1`.
+- `tests/parity/test_regression_v011.py`: regression coverage for every fix
+  above plus VCF no-length-contig fetch.
+- `pytest --require-oracles`: turns oracle-missing skips into failures for
+  CI / release gates.
+
+### Changed
+
+- `recount` / `parallel_map_regions` reuse one `IndexedAlignmentReader` per
+  thread (`rayon::map_init`) instead of reopening BAM+index per chunk / site
+  (16T recount was ~5.6× slower than necessary).
+- `__next__` batch decode releases the GIL (`py.allow_threads`); batch and
+  VCF iterators consume `std::vec::IntoIter` instead of cloning each record.
+- Three-way benchmark (`scripts/run_three_way_benchmark.py`) measures each
+  tool in an isolated subprocess (independent RSS high-water marks) and
+  digests canonical outputs only, so digests match iff results match.
+- CI pytest matrix now covers Python 3.10–3.13 (matches release wheels).
+- Removed dead code: `config.rs`, `BoundedChannel`, `compat.py`; merged the
+  duplicated `BASE_BUCKET` LUT into `samrust-core/src/base.rs`.
+
 ## 0.1.0 (2026-08-13)
 
 First public tag (`v0.1.0`). Linux x86_64 wheels via GitHub Releases (not PyPI).

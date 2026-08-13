@@ -1,11 +1,10 @@
 //! Parallel region scheduler and merge utilities (M5).
 //!
 //! `rayon`: data-parallel worker pool for region chunks.
-//! `crossbeam-channel`: bounded channels for backpressure between producers/consumers.
+//! `crossbeam-channel`: reserved for bounded producer/consumer pipelines (v0.2).
 
 use std::path::Path;
 
-use crossbeam_channel::{bounded, Receiver, Sender};
 use rayon::prelude::*;
 
 use crate::coords::Interval;
@@ -93,24 +92,6 @@ impl Scheduler {
     }
 }
 
-/// Bounded channel wrapper (default capacity `2 * workers`).
-#[derive(Debug)]
-pub struct BoundedChannel<T> {
-    pub tx: Sender<T>,
-    pub rx: Receiver<T>,
-}
-
-impl<T> BoundedChannel<T> {
-    pub fn new(capacity: usize) -> Self {
-        let (tx, rx) = bounded(capacity);
-        Self { tx, rx }
-    }
-
-    pub fn with_workers(workers: usize) -> Self {
-        Self::new(workers.saturating_mul(2).max(2))
-    }
-}
-
 /// Ordered merge of per-chunk results keyed by `chunk_id`.
 pub fn ordered_merge<T: Send>(mut chunks: Vec<(usize, T)>, ordered: bool) -> Vec<T> {
     if ordered {
@@ -119,14 +100,26 @@ pub fn ordered_merge<T: Send>(mut chunks: Vec<(usize, T)>, ordered: bool) -> Vec
     chunks.into_iter().map(|(_, v)| v).collect()
 }
 
-/// Batch of decoded records (parallel batch engine).
-#[derive(Debug, Clone, Default)]
-pub struct RecordBatch {
-    pub chunk_id: usize,
-    pub records: Vec<Record>,
+/// Exactly-once ownership test shared by parallel count / fetch paths.
+///
+/// A record belongs to `chunk` iff its 0-based alignment start (clamped up to
+/// `parent.start`, so reads hanging left of the parent region are owned by the
+/// first chunk) falls inside `chunk`. Records without an alignment start
+/// (unmapped, no POS) are never owned: they do not appear in indexed region
+/// queries.
+pub(crate) fn start_owned_by_interval(start: i64, parent: &Interval, chunk: &Interval) -> bool {
+    if start < 0 {
+        return false;
+    }
+    let s = (start as u64).max(parent.start.0);
+    chunk.contains(s)
 }
 
-/// Parallel map over region chunks; each worker opens its own indexed reader.
+/// Parallel map over region chunks.
+///
+/// Each rayon worker opens its indexed reader once (`map_init`) and reuses it
+/// across all chunks it processes — previously every chunk reopened the BAM
+/// and its index.
 pub fn parallel_map_regions<T, F>(
     bam_path: &Path,
     chunks: Vec<RegionChunk>,
@@ -149,59 +142,186 @@ where
     let results: Result<Vec<(usize, T)>> = pool.install(|| {
         chunks
             .par_iter()
-            .map(|chunk| {
-                let mut reader = IndexedAlignmentReader::open(bam_path)?;
-                let header = reader.header().clone();
-                let value = f(&header, &mut reader, chunk)?;
-                Ok((chunk.chunk_id, value))
-            })
+            .map_init(
+                || IndexedAlignmentReader::open(bam_path),
+                |slot, chunk| {
+                    let reader = slot.as_mut().map_err(|e| {
+                        SamRustError::InvalidArgument(format!("reopen {}: {e}", bam_path.display()))
+                    })?;
+                    let header = reader.header().clone();
+                    let value = f(&header, reader, chunk)?;
+                    Ok((chunk.chunk_id, value))
+                },
+            )
             .collect()
     });
     let pairs = results?;
     Ok(ordered_merge(pairs, ordered))
 }
 
-/// Parallel fetch with deduplication at chunk boundaries.
-pub fn parallel_fetch_records(
+/// A fetch unit: `chunk` partitions `parent`, and ownership is decided by
+/// clamping record starts to `parent` (see [`start_owned_by_chunk`]).
+#[derive(Debug, Clone)]
+pub struct FetchWindow {
+    pub parent: RegionChunk,
+    pub chunk: RegionChunk,
+}
+
+/// Chunk length for whole-file parallel iteration.
+///
+/// Bounds per-wave memory of `iter_batches(threads>1)`: each in-flight chunk
+/// holds at most the records overlapping ~1 Mb of reference.
+pub const WHOLE_FILE_CHUNK_LEN: u64 = 1_000_000;
+
+/// Build windows covering every placed record of the file, in file order
+/// (contigs in header order, then by position). Unmapped records without a
+/// position are not indexed and must be collected separately via
+/// [`IndexedAlignmentReader::unmapped_tail_records`].
+pub fn whole_file_windows(header: &Header) -> Vec<FetchWindow> {
+    let mut windows = Vec::new();
+    let mut next_id = 0usize;
+    for (contig, &len) in header.references().iter().zip(header.lengths()) {
+        if len == 0 {
+            continue;
+        }
+        let parent = RegionChunk {
+            contig: contig.clone(),
+            interval: Interval::new(0, len).expect("nonzero contig length"),
+            chunk_id: 0,
+        };
+        let mut pos = 0u64;
+        while pos < len {
+            let end = (pos + WHOLE_FILE_CHUNK_LEN).min(len);
+            windows.push(FetchWindow {
+                parent: parent.clone(),
+                chunk: RegionChunk {
+                    contig: contig.clone(),
+                    interval: Interval::new(pos, end).expect("pos < end"),
+                    chunk_id: next_id,
+                },
+            });
+            next_id += 1;
+            pos = end;
+        }
+    }
+    windows
+}
+
+/// Fetch one wave of windows in parallel; per-window records come back in
+/// wave order, each record exactly once (ownership-filtered).
+pub fn parallel_fetch_wave(
     bam_path: &Path,
-    chunks: Vec<RegionChunk>,
+    wave: &[FetchWindow],
     threads: usize,
-    ordered: bool,
+) -> Result<Vec<Vec<Record>>> {
+    if wave.is_empty() {
+        return Ok(Vec::new());
+    }
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(threads.max(1))
+        .build()
+        .map_err(|e| SamRustError::InvalidArgument(e.to_string()))?;
+    let results: Vec<Result<Vec<Record>>> = pool.install(|| {
+        wave.par_iter()
+            .map_init(
+                || IndexedAlignmentReader::open(bam_path),
+                |slot, w| {
+                    let reader = slot.as_mut().map_err(|e| {
+                        SamRustError::InvalidArgument(format!("reopen {}: {e}", bam_path.display()))
+                    })?;
+                    let mut records = reader.fetch_records(&w.chunk.contig, w.chunk.interval)?;
+                    records.retain(|r| {
+                        start_owned_by_interval(
+                            r.reference_start(),
+                            &w.parent.interval,
+                            &w.chunk.interval,
+                        )
+                    });
+                    Ok(records)
+                },
+            )
+            .collect()
+    });
+    results.into_iter().collect()
+}
+
+/// Parallel fetch over arbitrary regions.
+///
+/// Overlapping / adjacent regions on the same contig are merged before
+/// chunking, and each record is emitted exactly once via positional ownership
+/// (no hashing, no false-positive dedup of identical records). Output order is
+/// genomic: contigs in header order, then by position.
+pub fn parallel_fetch_regions(
+    bam_path: &Path,
+    regions: &[(String, Interval)],
+    threads: usize,
 ) -> Result<Vec<Record>> {
-    let batches: Vec<RecordBatch> = parallel_map_regions(
-        bam_path,
-        chunks,
-        threads,
-        ordered,
-        |_header, reader, chunk| {
-            let records = reader.fetch_records(&chunk.contig, chunk.interval)?;
-            Ok(RecordBatch {
-                chunk_id: chunk.chunk_id,
-                records,
-            })
-        },
-    )?;
-    let mut seen = std::collections::HashSet::new();
-    let mut out = Vec::new();
-    for batch in batches {
-        for record in batch.records {
-            let key = record_dedup_key(&record);
-            if seen.insert(key) {
-                out.push(record);
+    if regions.is_empty() {
+        return Ok(Vec::new());
+    }
+    let header = {
+        let reader = IndexedAlignmentReader::open(bam_path)?;
+        reader.header().clone()
+    };
+
+    // Group by contig, clamp to contig length, sort, merge overlapping/adjacent.
+    let n_contigs = header.nreferences();
+    let mut by_contig: Vec<Vec<Interval>> = vec![Vec::new(); n_contigs];
+    for (contig, interval) in regions {
+        let id = header.reference_id(contig)? as usize;
+        let len = header.lengths()[id];
+        let start = interval.start.0.min(len);
+        let stop = interval.stop.0.min(len);
+        if start < stop {
+            by_contig[id].push(Interval::new(start, stop)?);
+        }
+    }
+
+    let scheduler = Scheduler::default();
+    let mut windows = Vec::new();
+    let mut next_id = 0usize;
+    for (id, mut ivs) in by_contig.into_iter().enumerate() {
+        if ivs.is_empty() {
+            continue;
+        }
+        ivs.sort_by_key(|iv| iv.start.0);
+        let contig = header.references()[id].clone();
+        let mut merged: Vec<Interval> = Vec::with_capacity(ivs.len());
+        for iv in ivs {
+            if let Some(last) = merged.last_mut() {
+                if iv.start.0 <= last.stop.0 {
+                    if iv.stop.0 > last.stop.0 {
+                        *last = Interval::new(last.start.0, iv.stop.0)?;
+                    }
+                    continue;
+                }
+            }
+            merged.push(iv);
+        }
+        for m in merged {
+            let parent = RegionChunk {
+                contig: contig.clone(),
+                interval: m,
+                chunk_id: 0,
+            };
+            for c in scheduler.chunk_interval(&contig, m.start.0, m.stop.0, threads)? {
+                windows.push(FetchWindow {
+                    parent: parent.clone(),
+                    chunk: RegionChunk {
+                        chunk_id: next_id,
+                        ..c
+                    },
+                });
+                next_id += 1;
             }
         }
     }
-    Ok(out)
-}
 
-fn record_dedup_key(record: &Record) -> (String, u16, i32, i64, Option<String>) {
-    (
-        record.query_name().to_string(),
-        record.flag(),
-        record.reference_id(),
-        record.reference_start(),
-        record.cigarstring(),
-    )
+    let mut out = Vec::new();
+    for records in parallel_fetch_wave(bam_path, &windows, threads)? {
+        out.extend(records);
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -232,5 +352,19 @@ mod tests {
     fn ordered_merge_sorts_by_chunk_id() {
         let merged = ordered_merge(vec![(2, "c"), (0, "a"), (1, "b")], true);
         assert_eq!(merged, vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn ownership_clamps_to_parent_start() {
+        let parent = Interval::new(100, 300).unwrap();
+        let first = Interval::new(100, 200).unwrap();
+        let second = Interval::new(200, 300).unwrap();
+        // Read starting left of the parent belongs to the first chunk.
+        assert!(start_owned_by_interval(50, &parent, &first));
+        assert!(!start_owned_by_interval(50, &parent, &second));
+        assert!(start_owned_by_interval(250, &parent, &second));
+        assert!(!start_owned_by_interval(250, &parent, &first));
+        // Unmapped (no position) is never owned.
+        assert!(!start_owned_by_interval(-1, &parent, &first));
     }
 }

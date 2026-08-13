@@ -135,3 +135,33 @@ def test_m9_context_manager_and_missing_contig() -> None:
         assert vf.header.samples == ["sample1"]
     with pytest.raises(Exception):
         samrust.VariantFile(str(path)).fetch("missing_contig", 0, 10)
+
+
+def test_m9_fetch_contig_without_length_in_header(tmp_path) -> None:
+    """v0.1.1 P0b: fetch(contig) on a header without contig length must not
+    silently return empty; unbounded fetch falls back to a sequential scan."""
+    pysam = pytest.importorskip("pysam")
+    samrust = pytest.importorskip("samrust")
+
+    vcf = tmp_path / "nolength.vcf"
+    vcf.write_text(
+        "##fileformat=VCFv4.2\n"
+        "##contig=<ID=chr1>\n"
+        '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
+        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tS1\n"
+        "chr1\t10\t.\tA\tG\t50\tPASS\t.\tGT\t0/1\n"
+        "chr1\t20\t.\tC\tT\t60\tPASS\t.\tGT\t1/1\n"
+    )
+    gz = tmp_path / "nolength.vcf.gz"
+    pysam.tabix_compress(str(vcf), str(gz), force=True)
+    pysam.tabix_index(str(gz), preset="vcf", force=True)
+
+    with pysam.VariantFile(str(gz)) as py:
+        expected = [r.pos for r in py.fetch("chr1")]
+    with samrust.VariantFile(str(gz)) as sr:
+        assert [r.pos for r in sr.fetch("chr1")] == expected
+        # explicit stop still uses the index
+        assert [r.pos for r in sr.fetch("chr1", 0, 15)] == [10]
+        # negative coordinates -> ValueError (pysam semantics)
+        with pytest.raises(ValueError):
+            list(sr.fetch("chr1", -5, 15))

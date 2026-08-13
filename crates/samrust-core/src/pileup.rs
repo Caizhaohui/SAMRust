@@ -6,6 +6,7 @@ use noodles::bam;
 use noodles::sam::alignment::record::cigar::op::Kind;
 use noodles::sam::alignment::record::Flags;
 
+use crate::base::BASE_BUCKET;
 use crate::coords::Interval;
 use crate::error::{Result, SamRustError};
 use crate::indexed::{raw_alignment_start_0based, IndexedAlignmentReader};
@@ -191,19 +192,6 @@ fn increment_pileup_base(counts: &mut PileupCounts, idx: usize, base: u8) {
 }
 
 /// 0=A, 1=C, 2=G, 3=T, 4=other.
-const BASE_BUCKET: [u8; 256] = {
-    let mut t = [4u8; 256];
-    t[b'A' as usize] = 0;
-    t[b'a' as usize] = 0;
-    t[b'C' as usize] = 1;
-    t[b'c' as usize] = 1;
-    t[b'G' as usize] = 2;
-    t[b'g' as usize] = 2;
-    t[b'T' as usize] = 3;
-    t[b't' as usize] = 3;
-    t
-};
-
 /// Serial pileup counts for a region.
 pub fn pileup_counts(
     reader: &mut IndexedAlignmentReader,

@@ -6,8 +6,8 @@
 #![deny(unsafe_code)]
 
 pub mod bam;
+pub(crate) mod base;
 pub mod cigar;
-pub mod config;
 pub mod coords;
 pub mod cram;
 pub mod depth;
@@ -23,7 +23,6 @@ pub mod vcf;
 
 pub use bam::{AlignmentReader, RecordIter};
 pub use cigar::Cigar;
-pub use config::RuntimeConfig;
 pub use coords::{Interval, Position};
 pub use cram::{is_cram_path, CramAlignmentReader};
 pub use depth::{
@@ -32,11 +31,11 @@ pub use depth::{
     parallel_depth_profile, CoverageProfile, DepthProfile, ReadFilter,
 };
 pub use error::{Result, SamRustError};
-pub use header::Header;
+pub use header::{Header, HeaderDict, SqEntry};
 pub use indexed::{FetchIter, IndexedAlignmentReader};
 pub use parallel::{
-    ordered_merge, parallel_fetch_records, parallel_map_regions, BoundedChannel, RecordBatch,
-    RegionChunk, Scheduler,
+    ordered_merge, parallel_fetch_regions, parallel_fetch_wave, parallel_map_regions,
+    whole_file_windows, FetchWindow, RegionChunk, Scheduler,
 };
 pub use pileup::{parallel_pileup_counts, pileup_counts, PileupCounts, PileupFilter};
 pub use record::Record;

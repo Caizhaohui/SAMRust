@@ -65,6 +65,10 @@ impl CramAlignmentReader {
         &self.header
     }
 
+    pub fn raw_header(&self) -> &noodles::sam::Header {
+        &self.raw_header
+    }
+
     /// Sequential records. M11 materializes the file once (evaluation / fixture-scale).
     pub fn read_batch(&mut self, batch_size: usize) -> Result<Vec<Record>> {
         if batch_size == 0 {

@@ -6,10 +6,11 @@ use noodles::bam;
 use noodles::sam::alignment::record::cigar::op::Kind;
 use noodles::sam::alignment::record::Flags;
 
+use crate::base::BASE_BUCKET;
 use crate::coords::Interval;
 use crate::error::{Result, SamRustError};
 use crate::indexed::{raw_alignment_start_0based, IndexedAlignmentReader};
-use crate::parallel::{parallel_map_regions, Scheduler};
+use crate::parallel::{parallel_map_regions, start_owned_by_interval, Scheduler};
 use crate::record::Record;
 
 /// Read filter presets mirroring common pysam `read_callback` names.
@@ -108,16 +109,7 @@ fn count_owned_by_chunk(
         return Ok(false);
     }
     let start = raw_alignment_start_0based(raw)?;
-    if start < 0 {
-        return Ok(false);
-    }
-    let start = start as u64;
-    let owner = if start < parent.start.0 {
-        parent.start.0
-    } else {
-        start
-    };
-    Ok(owner >= chunk.start.0 && owner < chunk.stop.0)
+    Ok(start_owned_by_interval(start, &parent, &chunk))
 }
 
 /// Per-position depth accumulator for `[start, stop)`.
@@ -296,19 +288,6 @@ pub fn add_record_depth(
 }
 
 /// 0=A, 1=C, 2=G, 3=T, 4=other. Avoids `to_ascii_uppercase` in the inner loop.
-const BASE_BUCKET: [u8; 256] = {
-    let mut t = [4u8; 256];
-    t[b'A' as usize] = 0;
-    t[b'a' as usize] = 0;
-    t[b'C' as usize] = 1;
-    t[b'c' as usize] = 1;
-    t[b'G' as usize] = 2;
-    t[b'g' as usize] = 2;
-    t[b'T' as usize] = 3;
-    t[b't' as usize] = 3;
-    t
-};
-
 fn increment_base(cov: &mut CoverageProfile, idx: usize, base: u8) {
     match BASE_BUCKET[base as usize] {
         0 => cov.a[idx] += 1,

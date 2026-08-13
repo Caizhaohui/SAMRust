@@ -1,6 +1,7 @@
 //! PyO3 `VariantFile` / `VariantRecord` (M9).
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use pyo3::exceptions::{PyKeyError, PyValueError};
 use pyo3::prelude::*;
@@ -8,6 +9,7 @@ use pyo3::types::PyTuple;
 use pyo3::IntoPyObjectExt;
 use samrust_core::{Interval, VariantInfoValue, VariantReader, VariantRecord, VariantSample};
 
+use crate::alignment::checked_coord;
 use crate::error::to_pyerr;
 
 /// pysam-compatible VCF/BCF reader.
@@ -18,8 +20,7 @@ pub struct PyVariantFile {
     path: PathBuf,
     reader: Option<VariantReader>,
     closed: bool,
-    iter_records: Vec<VariantRecord>,
-    iter_pos: usize,
+    iter_records: std::vec::IntoIter<VariantRecord>,
 }
 
 #[pymethods]
@@ -38,8 +39,7 @@ impl PyVariantFile {
             path,
             reader: Some(reader),
             closed: false,
-            iter_records: Vec::new(),
-            iter_pos: 0,
+            iter_records: Vec::new().into_iter(),
         })
     }
 
@@ -69,8 +69,7 @@ impl PyVariantFile {
     fn close(&mut self) {
         self.reader = None;
         self.closed = true;
-        self.iter_records.clear();
-        self.iter_pos = 0;
+        self.iter_records = Vec::new().into_iter();
     }
 
     fn __enter__(slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
@@ -87,10 +86,10 @@ impl PyVariantFile {
         Ok(false)
     }
 
-    fn __iter__(mut slf: PyRefMut<'_, Self>) -> PyResult<PyRefMut<'_, Self>> {
-        let recs = slf.ensure_open()?.records().map_err(to_pyerr)?;
-        slf.iter_records = recs;
-        slf.iter_pos = 0;
+    fn __iter__<'a>(mut slf: PyRefMut<'a, Self>, py: Python<'_>) -> PyResult<PyRefMut<'a, Self>> {
+        let reader = slf.ensure_open()?;
+        let recs = py.allow_threads(|| reader.records().map_err(to_pyerr))?;
+        slf.iter_records = recs.into_iter();
         Ok(slf)
     }
 
@@ -98,15 +97,13 @@ impl PyVariantFile {
         mut slf: PyRefMut<'_, Self>,
         py: Python<'_>,
     ) -> PyResult<Option<Py<PyVariantRecord>>> {
-        if slf.iter_pos >= slf.iter_records.len() {
+        let Some(rec) = slf.iter_records.next() else {
             return Ok(None);
-        }
-        let rec = slf.iter_records[slf.iter_pos].clone();
-        slf.iter_pos += 1;
+        };
         let names = slf
             .reader
             .as_ref()
-            .map(|r| r.header().samples.clone())
+            .map(|r| Arc::new(r.header().samples.clone()))
             .unwrap_or_default();
         Ok(Some(Py::new(
             py,
@@ -117,28 +114,50 @@ impl PyVariantFile {
         )?))
     }
 
+    /// Region fetch, 0-based half-open.
+    ///
+    /// pysam semantics: negative coordinates raise `ValueError`; `stop` is
+    /// clamped to the contig length when the header provides one. When the
+    /// header has no contig length and `stop` is omitted, an unbounded fetch
+    /// falls back to a sequential scan (tabix/CSI cannot express it).
     #[pyo3(signature = (contig = None, start = None, stop = None))]
     fn fetch(
         &mut self,
+        py: Python<'_>,
         contig: Option<&str>,
-        start: Option<u64>,
-        stop: Option<u64>,
+        start: Option<i64>,
+        stop: Option<i64>,
     ) -> PyResult<PyVariantFetchIterator> {
         let reader = self.ensure_open()?;
         let records = if let Some(contig) = contig {
+            // 0 = header carries no length for this contig.
             let len = reader.header().contig_length(contig).map_err(to_pyerr)?;
-            let start = start.unwrap_or(0);
-            let stop = stop.unwrap_or(len);
-            let interval = Interval::new(start, stop).map_err(to_pyerr)?;
-            reader.fetch(contig, interval).map_err(to_pyerr)?
+            let start = start
+                .map(|v| checked_coord(v, "start"))
+                .transpose()?
+                .unwrap_or(0);
+            let stop = stop.map(|v| checked_coord(v, "stop")).transpose()?;
+            match (stop, len) {
+                (None, 0) => {
+                    py.allow_threads(|| reader.fetch_from(contig, start).map_err(to_pyerr))?
+                }
+                (s, l) => {
+                    let (start, stop) = if l > 0 {
+                        (start.min(l), s.unwrap_or(l).min(l))
+                    } else {
+                        (start, s.expect("stop is Some when len == 0"))
+                    };
+                    let interval = Interval::new(start, stop).map_err(to_pyerr)?;
+                    py.allow_threads(|| reader.fetch(contig, interval).map_err(to_pyerr))?
+                }
+            }
         } else {
-            reader.records().map_err(to_pyerr)?
+            py.allow_threads(|| reader.records().map_err(to_pyerr))?
         };
-        let names = reader.header().samples.clone();
+        let names = Arc::new(reader.header().samples.clone());
         Ok(PyVariantFetchIterator {
-            records,
+            records: records.into_iter(),
             names,
-            pos: 0,
         })
     }
 }
@@ -175,7 +194,7 @@ impl PyVariantHeader {
 #[derive(Clone)]
 pub struct PyVariantRecord {
     inner: VariantRecord,
-    sample_names: Vec<String>,
+    sample_names: Arc<Vec<String>>,
 }
 
 #[pymethods]
@@ -267,7 +286,7 @@ impl PyVariantRecord {
 #[pyclass(name = "_VariantRecordSamples", module = "samrust._samrust")]
 #[derive(Clone)]
 pub struct PyVariantRecordSamples {
-    names: Vec<String>,
+    names: Arc<Vec<String>>,
     samples: Vec<VariantSample>,
 }
 
@@ -329,9 +348,8 @@ impl PyVariantSample {
 
 #[pyclass(name = "_VariantFetchIterator", module = "samrust._samrust")]
 pub struct PyVariantFetchIterator {
-    records: Vec<VariantRecord>,
-    names: Vec<String>,
-    pos: usize,
+    records: std::vec::IntoIter<VariantRecord>,
+    names: Arc<Vec<String>>,
 }
 
 #[pymethods]
@@ -341,18 +359,16 @@ impl PyVariantFetchIterator {
     }
 
     fn __next__(&mut self, py: Python<'_>) -> PyResult<Option<Py<PyVariantRecord>>> {
-        if self.pos >= self.records.len() {
-            return Ok(None);
+        match self.records.next() {
+            Some(rec) => Ok(Some(Py::new(
+                py,
+                PyVariantRecord {
+                    inner: rec,
+                    sample_names: self.names.clone(),
+                },
+            )?)),
+            None => Ok(None),
         }
-        let rec = self.records[self.pos].clone();
-        self.pos += 1;
-        Ok(Some(Py::new(
-            py,
-            PyVariantRecord {
-                inner: rec,
-                sample_names: self.names.clone(),
-            },
-        )?))
     }
 }
 

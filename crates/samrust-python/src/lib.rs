@@ -8,7 +8,7 @@ mod variant;
 use pyo3::prelude::*;
 use samrust_core::VERSION;
 
-use alignment::{PyAlignmentFile, PyFetchIterator};
+use alignment::{PyAlignmentFile, PyBatchIterator, PyFetchIterator};
 use segment::PyAlignedSegment;
 use variant::{PyVariantFile, PyVariantHeader, PyVariantRecord};
 
@@ -26,6 +26,7 @@ fn _samrust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyAlignmentFile>()?;
     m.add_class::<PyAlignedSegment>()?;
     m.add_class::<PyFetchIterator>()?;
+    m.add_class::<PyBatchIterator>()?;
     m.add_class::<PyVariantFile>()?;
     m.add_class::<PyVariantRecord>()?;
     m.add_class::<PyVariantHeader>()?;

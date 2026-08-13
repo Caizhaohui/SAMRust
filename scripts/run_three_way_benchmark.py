@@ -28,6 +28,7 @@ import csv
 import hashlib
 import json
 import resource
+import subprocess
 import sys
 import time
 from dataclasses import dataclass
@@ -63,13 +64,22 @@ def _digest(obj: Any) -> str:
     return hashlib.sha256(blob).hexdigest()[:16]
 
 
-def _time_call(fn: Callable[[], Any]) -> tuple[Any, float, int]:
-    rss0 = _rss_kb()
-    t0 = time.perf_counter()
-    value = fn()
-    wall = time.perf_counter() - t0
-    rss1 = _rss_kb()
-    return value, wall, max(rss0, rss1)
+def _canonical(workload: str, out: dict[str, Any]) -> Any:
+    """Normalize a tool's output to comparable values only.
+
+    Digests must match across tools when (and only when) the results match;
+    tool-specific extra keys (e.g. rubam ``count_reads_nofilter`` /
+    ``positions_1based``) are excluded here but kept in ``detail``.
+    """
+    if workload == "count":
+        return {"count": int(out["count"])}
+    if workload == "count_coverage":
+        return {k: [int(x) for x in out[k]] for k in ("A", "C", "G", "T")}
+    if workload == "depth":
+        return {"depth": [int(x) for x in out["depth"]]}
+    if workload == "pileup_counts":
+        return {k: [int(x) for x in out[k]] for k in ("A", "C", "G", "T", "N", "depth")}
+    return out
 
 
 def pysam_count(bam: Path, contig: str, start: int, stop: int, **_kw: Any) -> dict[str, Any]:
@@ -392,26 +402,95 @@ WORKLOADS: dict[str, dict[str, Callable[..., dict[str, Any]]]] = {
 
 
 def _compare_to_pysam(workload: str, pysam_out: dict[str, Any], other: dict[str, Any]) -> str:
+    """Legacy full-output comparison (kept for ad-hoc debugging).
+
+    The benchmark path compares canonical digests instead (see run_workload).
+    """
+    return (
+        "match"
+        if _digest(_canonical(workload, other)) == _digest(_canonical(workload, pysam_out))
+        else "mismatch"
+    )
+
+
+def _compact_detail(workload: str, out: dict[str, Any]) -> dict[str, Any]:
+    """Compact detail for JSON (avoid dumping huge arrays)."""
     if workload == "count":
-        return "match" if int(other["count"]) == int(pysam_out["count"]) else "mismatch"
-    if workload == "count_coverage":
-        keys = ("A", "C", "G", "T")
-        ok = all(other[k] == pysam_out[k] for k in keys)
-        return "match" if ok else "mismatch"
-    if workload == "depth":
-        if other.get("depth") == pysam_out.get("depth"):
-            return "match"
-        # Allow sum-only diagnostic when arrays differ in length semantics.
-        if other.get("sum") == pysam_out.get("sum") and len(other.get("depth", [])) == len(
-            pysam_out.get("depth", [])
-        ):
-            return "sum_match_array_mismatch"
-        return "mismatch"
-    if workload == "pileup_counts":
-        keys = ("A", "C", "G", "T", "N", "depth")
-        ok = all(other.get(k) == pysam_out.get(k) for k in keys)
-        return "match" if ok else "mismatch"
-    return "n/a"
+        return dict(out)
+    detail: dict[str, Any] = {
+        "sums": out.get("sums")
+        or {
+            k: int(sum(out[k]))
+            for k in ("A", "C", "G", "T", "N", "depth")
+            if k in out and isinstance(out[k], list)
+        },
+        "len": len(next((out[k] for k in ("A", "depth") if k in out), [])),
+    }
+    if "sum" in out:
+        detail["sum"] = out["sum"]
+    if "count_reads_nofilter" in out:
+        detail["count_reads_nofilter"] = out["count_reads_nofilter"]
+    return detail
+
+
+def _measure_one(argv: list[str]) -> int:
+    """Child-process entry: run one workload once, print JSON to stdout.
+
+    Each (tool, repeat) runs in an isolated subprocess so the RSS high-water
+    mark is per-tool (v0.1.1 P3b: previously all three tools shared the parent
+    process and inherited each other's ``ru_maxrss``). The child emits the
+    canonical digest + compact detail instead of raw arrays, keeping stdout
+    small even for whole-chromosome workloads.
+    """
+    workload, tool, bam, contig, start, stop, threads, min_bq = argv
+    fn = WORKLOADS[workload][tool]
+    kw = {"threads": int(threads), "min_bq": int(min_bq)}
+    fn(Path(bam), contig, int(start), int(stop), **kw)  # warm-up
+    t0 = time.perf_counter()
+    out = fn(Path(bam), contig, int(start), int(stop), **kw)
+    wall = time.perf_counter() - t0
+    print(
+        json.dumps(
+            {
+                "digest": _digest(_canonical(workload, out)),
+                "wall_s": wall,
+                "max_rss_kb": _rss_kb(),
+                "detail": _compact_detail(workload, out),
+            }
+        )
+    )
+    return 0
+
+
+def _run_child(
+    workload: str,
+    tool: str,
+    bam: Path,
+    contig: str,
+    start: int,
+    stop: int,
+    threads: int,
+    min_bq: int,
+) -> dict[str, Any]:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(Path(__file__).resolve()),
+            "--_measure-one",
+            workload,
+            tool,
+            str(bam),
+            contig,
+            str(start),
+            str(stop),
+            str(threads),
+            str(min_bq),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return json.loads(proc.stdout.strip().splitlines()[-1])
 
 
 def run_workload(
@@ -425,60 +504,45 @@ def run_workload(
     min_bq: int,
     repeats: int,
 ) -> list[RunResult]:
-    runners = WORKLOADS[workload]
-    # Warm-up each tool once
-    for tool, fn in runners.items():
-        fn(bam, contig, start, stop, threads=threads, min_bq=min_bq)
-
-    measured: dict[str, list[tuple[dict[str, Any], float, int]]] = {t: [] for t in runners}
+    measured: dict[str, list[dict[str, Any]]] = {t: [] for t in WORKLOADS[workload]}
     for _ in range(max(1, repeats)):
-        for tool, fn in runners.items():
-            out, wall, rss = _time_call(
-                lambda f=fn: f(bam, contig, start, stop, threads=threads, min_bq=min_bq)
+        for tool in WORKLOADS[workload]:
+            measured[tool].append(
+                _run_child(workload, tool, bam, contig, start, stop, threads, min_bq)
             )
-            measured[tool].append((out, wall, rss))
 
-    # Median by wall time
-    def pick(tool: str) -> tuple[dict[str, Any], float, int]:
-        rows = sorted(measured[tool], key=lambda x: x[1])
+    def pick(tool: str) -> dict[str, Any]:
+        rows = sorted(measured[tool], key=lambda r: r["wall_s"])
         return rows[len(rows) // 2]
 
-    pysam_out, pysam_wall, pysam_rss = pick("pysam")
+    pysam_row = pick("pysam")
     results: list[RunResult] = []
     for tool in ("pysam", "rubam", "samrust"):
-        out, wall, rss = pick(tool)
-        gate = "oracle" if tool == "pysam" else _compare_to_pysam(workload, pysam_out, out)
-        # Compact detail for JSON (avoid dumping huge arrays twice)
-        detail: dict[str, Any] = {}
-        if workload == "count":
-            detail = dict(out)
-        elif workload in ("count_coverage", "depth", "pileup_counts"):
-            detail = {
-                "sums": out.get("sums")
-                or {
-                    k: int(sum(out[k]))
-                    for k in ("A", "C", "G", "T", "N", "depth")
-                    if k in out and isinstance(out[k], list)
-                },
-                "len": len(next((out[k] for k in ("A", "depth") if k in out), [])),
-            }
-            if "sum" in out:
-                detail["sum"] = out["sum"]
-            if "count_reads_nofilter" in out:
-                detail["count_reads_nofilter"] = out["count_reads_nofilter"]
+        row = pick(tool)
+        if tool == "pysam":
+            gate = "oracle"
+        elif row["digest"] == pysam_row["digest"]:
+            gate = "match"
+        elif (
+            workload == "depth"
+            and row["detail"].get("sum") == pysam_row["detail"].get("sum")
+            and row["detail"].get("len") == pysam_row["detail"].get("len")
+        ):
+            gate = "sum_match_array_mismatch"
+        else:
+            gate = "mismatch"
         results.append(
             RunResult(
                 tool=tool,
                 workload=workload,
                 threads=threads,
-                wall_s=wall,
-                max_rss_kb=rss,
-                output_digest=_digest(out),
+                wall_s=float(row["wall_s"]),
+                max_rss_kb=int(row["max_rss_kb"]),
+                output_digest=row["digest"],
                 gate_vs_pysam=gate,
-                detail=detail,
+                detail=row["detail"],
             )
         )
-        _ = (pysam_wall, pysam_rss)  # retained via results
     return results
 
 
@@ -517,6 +581,10 @@ def write_outputs(
 
 
 def main() -> int:
+    # Hidden child mode: --_measure-one <workload> <tool> <bam> <contig> <start> <stop> <threads> <min_bq>
+    if len(sys.argv) > 1 and sys.argv[1] == "--_measure-one":
+        return _measure_one(sys.argv[2:])
+
     root = Path(__file__).resolve().parents[1]
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--bam", type=Path, required=True)

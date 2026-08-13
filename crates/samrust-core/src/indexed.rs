@@ -80,6 +80,26 @@ impl IndexedAlignmentReader {
         self.fetch(contig, interval)?.collect::<Result<Vec<_>>>()
     }
 
+    /// Read the unmapped tail: records without a reference id (unmapped, no
+    /// POS), which are not covered by any index bin and are therefore
+    /// invisible to region queries.
+    ///
+    /// Seeks via the index pseudo-bin offset when present (O(tail)); otherwise
+    /// falls back to a full scan. Placed-unmapped records (FUNMAP with POS)
+    /// are indexed under their contig and are NOT returned here.
+    pub fn unmapped_tail_records(&mut self) -> Result<Vec<Record>> {
+        let header = self.header.clone();
+        let iter = self.reader.query_unmapped().map_err(SamRustError::from)?;
+        let mut out = Vec::new();
+        for result in iter {
+            let raw = result.map_err(SamRustError::from)?;
+            if raw.reference_sequence_id().is_none() {
+                out.push(Record::from_noodles(&raw, &header)?);
+            }
+        }
+        Ok(out)
+    }
+
     /// Visit each indexed-fetch hit as a noodles BAM record, reusing one scratch buffer.
     ///
     /// Does **not** build an owned [`Record`]. Python `fetch` still goes through
@@ -244,5 +264,18 @@ mod tests {
         assert!(indexed
             .fetch("missing", Interval::new(0, 10).unwrap())
             .is_err());
+    }
+
+    #[test]
+    fn unmapped_tail_finds_unplaced_record() {
+        // The Tier-0 fixture ends with `unmap1` (FUNMAP, no POS): invisible to
+        // region queries, so it must come from the tail scan.
+        let bam = fixture_bam();
+        let mut indexed = IndexedAlignmentReader::open(&bam).unwrap();
+        let tail = indexed.unmapped_tail_records().unwrap();
+        assert_eq!(tail.len(), 1);
+        assert_eq!(tail[0].query_name(), "unmap1");
+        assert!(tail[0].is_unmapped());
+        assert_eq!(tail[0].reference_id(), -1);
     }
 }

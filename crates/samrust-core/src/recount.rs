@@ -146,7 +146,9 @@ fn row_from_counts(sample: &str, site: &RecountSite, counts: &PileupCounts) -> R
 
 /// Recount all sites for one BAM.
 ///
-/// `threads > 1` parallelizes across sites (each worker opens its own indexed reader).
+/// `threads > 1` parallelizes across sites. Each rayon worker opens its
+/// indexed reader once (`map_init`) and reuses it — previously every site
+/// reopened the BAM and its index (the dominant 16T recount cost).
 pub fn recount_bam(
     bam_path: &Path,
     sample: &str,
@@ -173,12 +175,17 @@ pub fn recount_bam(
     pool.install(|| {
         sites
             .par_iter()
-            .map(|site| {
-                let mut reader = IndexedAlignmentReader::open(bam_path)?;
-                let interval = Interval::new(site.pos0, site.pos0 + 1)?;
-                let counts = pileup_counts(&mut reader, &site.chrom, interval, filter)?;
-                Ok(row_from_counts(sample, site, &counts))
-            })
+            .map_init(
+                || IndexedAlignmentReader::open(bam_path),
+                |slot, site| {
+                    let reader = slot.as_mut().map_err(|e| {
+                        SamRustError::InvalidArgument(format!("reopen {}: {e}", bam_path.display()))
+                    })?;
+                    let interval = Interval::new(site.pos0, site.pos0 + 1)?;
+                    let counts = pileup_counts(reader, &site.chrom, interval, filter)?;
+                    Ok(row_from_counts(sample, site, &counts))
+                },
+            )
             .collect()
     })
 }

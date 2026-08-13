@@ -202,6 +202,20 @@ fn tag_json(val: &TagValue) -> String {
         TagValue::Float(f) => f.to_string(),
         TagValue::Char(c) => format!("\"{c}\""),
         TagValue::Str(s) | TagValue::Other(s) => format!("\"{}\"", escape(s)),
+        TagValue::IntArray(_, v) => format!(
+            "[{}]",
+            v.iter()
+                .map(|n| n.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
+        TagValue::FloatArray(v) => format!(
+            "[{}]",
+            v.iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
     }
 }
 

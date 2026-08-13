@@ -54,6 +54,11 @@ impl Interval {
         self.start == self.stop
     }
 
+    /// Whether `pos` falls inside `[start, stop)`.
+    pub fn contains(&self, pos: u64) -> bool {
+        self.start.0 <= pos && pos < self.stop.0
+    }
+
     /// Convert to 1-based inclusive coordinates for tools that require them.
     ///
     /// Empty intervals map to `(start+1, start)` which callers must treat carefully.

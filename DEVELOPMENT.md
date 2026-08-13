@@ -2,6 +2,8 @@
 
 Follow [AGENTS.md](AGENTS.md) and [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md). One milestone at a time.
 
+v0.1 审查结论与 v0.1.1 整改清单见 [REVIEW.md](REVIEW.md)。
+
 ## Toolchain
 
 - Rust **1.82+** (workspace `rust-version`)

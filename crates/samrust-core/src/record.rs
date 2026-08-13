@@ -183,6 +183,14 @@ impl Record {
     pub fn reference_start(&self) -> i64 {
         self.reference_start
     }
+    /// One past the last aligned reference base (0-based), pysam
+    /// `reference_end` semantics: `None` for unmapped reads or empty CIGAR.
+    pub fn reference_end(&self) -> Option<i64> {
+        if self.is_unmapped() || self.reference_start < 0 || self.cigar.is_empty() {
+            return None;
+        }
+        Some(self.reference_start + self.cigar.reference_length() as i64)
+    }
     pub fn mapping_quality(&self) -> u8 {
         self.mapping_quality
     }

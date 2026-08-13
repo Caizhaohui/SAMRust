@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "samrust"
-version = "0.1.0"
+version = "0.1.1"
 description = "Rust-native, multi-threaded, pysam-compatible HTS processing for Linux/HPC"
 readme = "README.md"
 requires-python = ">=3.10"

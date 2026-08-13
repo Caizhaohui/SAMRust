@@ -1020,7 +1020,7 @@ dependencies = [
 
 [[package]]
 name = "samrust-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "clap",
  "samrust-core",
@@ -1028,7 +1028,7 @@ dependencies = [
 
 [[package]]
 name = "samrust-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "crossbeam-channel",
  "noodles",
@@ -1040,7 +1040,7 @@ dependencies = [
 
 [[package]]
 name = "samrust-python"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "numpy",
  "pyo3",

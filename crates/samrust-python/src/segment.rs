@@ -47,6 +47,13 @@ impl PyAlignedSegment {
         self.inner.reference_start()
     }
 
+    /// One past the last aligned reference base (0-based); `None` for
+    /// unmapped reads or empty CIGAR (pysam `reference_end` semantics).
+    #[getter]
+    fn reference_end(&self) -> Option<i64> {
+        self.inner.reference_end()
+    }
+
     #[getter]
     fn mapping_quality(&self) -> u8 {
         self.inner.mapping_quality()
@@ -193,6 +200,17 @@ fn tag_value_to_py(py: Python<'_>, val: &TagValue) -> PyResult<Py<PyAny>> {
         TagValue::Int(n) => (*n).into_py_any(py),
         TagValue::Float(f) => (*f).into_py_any(py),
         TagValue::Str(s) | TagValue::Other(s) => s.clone().into_py_any(py),
+        // pysam returns array.array for B tags (typecode preserved).
+        TagValue::IntArray(code, v) => py
+            .import("array")?
+            .getattr("array")?
+            .call1((code.to_string(), v.clone()))?
+            .into_py_any(py),
+        TagValue::FloatArray(v) => py
+            .import("array")?
+            .getattr("array")?
+            .call1(("f", v.clone()))?
+            .into_py_any(py),
     }
 }
 

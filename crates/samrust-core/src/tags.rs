@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
+use noodles::sam::alignment::record::data::field::value::array::{Array, Values};
 use noodles::sam::alignment::record::data::field::Value;
 
 use crate::error::{Result, SamRustError};
@@ -24,7 +25,12 @@ pub enum TagValue {
     Float(f32),
     /// String / hex (`Z` / `H`).
     Str(String),
-    /// Other / array — stringified for M2 dumps.
+    /// Integer array (`B:c/C/s/S/i/I`); the char is the pysam/Python
+    /// `array.array` typecode (`b/B/h/H/i/I`).
+    IntArray(char, Vec<i64>),
+    /// Float array (`B:f`) — maps to a Python `array.array('f', ...)`.
+    FloatArray(Vec<f32>),
+    /// Other — stringified fallback (should not occur for valid BAM).
     Other(String),
 }
 
@@ -72,23 +78,47 @@ impl Tags {
             let name = std::str::from_utf8(tag.as_ref())
                 .unwrap_or("??")
                 .to_string();
-            tags.insert(name, TagValue::from_noodles(value));
+            tags.insert(name, TagValue::from_noodles(value)?);
         }
         Ok(tags)
     }
 }
 
+fn collect_int_array<'a, N>(values: &dyn Values<'a, N>) -> Result<Vec<i64>>
+where
+    N: Into<i64>,
+{
+    values
+        .iter()
+        .map(|r| r.map(Into::into).map_err(SamRustError::from))
+        .collect()
+}
+
 impl TagValue {
-    fn from_noodles(value: Value<'_>) -> Self {
+    fn from_noodles(value: Value<'_>) -> Result<Self> {
         if let Some(n) = value.as_int() {
-            return Self::Int(n);
+            return Ok(Self::Int(n));
         }
-        match value {
+        Ok(match value {
             Value::Character(b) => Self::Char(char::from(b)),
             Value::Float(f) => Self::Float(f),
             Value::String(s) | Value::Hex(s) => Self::Str(s.to_string()),
+            Value::Array(array) => match array {
+                Array::Int8(v) => Self::IntArray('b', collect_int_array(v.as_ref())?),
+                Array::UInt8(v) => Self::IntArray('B', collect_int_array(v.as_ref())?),
+                Array::Int16(v) => Self::IntArray('h', collect_int_array(v.as_ref())?),
+                Array::UInt16(v) => Self::IntArray('H', collect_int_array(v.as_ref())?),
+                Array::Int32(v) => Self::IntArray('i', collect_int_array(v.as_ref())?),
+                Array::UInt32(v) => Self::IntArray('I', collect_int_array(v.as_ref())?),
+                Array::Float(v) => Self::FloatArray(
+                    v.as_ref()
+                        .iter()
+                        .map(|r| r.map_err(SamRustError::from))
+                        .collect::<Result<Vec<f32>>>()?,
+                ),
+            },
             other => Self::Other(format!("{other:?}")),
-        }
+        })
     }
 
     /// JSON-ish literal for dump/parity scripts.
@@ -105,6 +135,20 @@ impl TagValue {
                 }
             }
             Self::Str(s) => format!("\"{}\"", escape_json(s)),
+            Self::IntArray(_, v) => format!(
+                "[{}]",
+                v.iter()
+                    .map(|n| n.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
+            Self::FloatArray(v) => format!(
+                "[{}]",
+                v.iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
             Self::Other(s) => format!("\"{}\"", escape_json(s)),
         }
     }
@@ -117,6 +161,22 @@ impl fmt::Display for TagValue {
             Self::Int(n) => write!(f, "{n}"),
             Self::Float(x) => write!(f, "{x}"),
             Self::Str(s) | Self::Other(s) => write!(f, "{s}"),
+            Self::IntArray(_, v) => write!(
+                f,
+                "{}",
+                v.iter()
+                    .map(|n| n.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
+            Self::FloatArray(v) => write!(
+                f,
+                "{}",
+                v.iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
         }
     }
 }
