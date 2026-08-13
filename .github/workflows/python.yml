@@ -29,8 +29,10 @@ jobs:
       - name: Install Python deps
         run: pip install maturin pytest pysam numpy
 
-      - name: Develop install
-        run: maturin develop
+      - name: Build and install wheel
+        run: |
+          maturin build --out dist
+          pip install dist/*.whl
 
       - name: pytest
         run: python -m pytest tests -q
