@@ -1,0 +1,67 @@
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock.bak
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+.python-version
+
+# Maturin / wheels
+*.whl
+wheelhouse/
+
+# IDE / OS / local tooling
+.idea/
+.vscode/
+*.swp
+.DS_Store
+.codegraph
+
+# Benchmarks & real-data local paths (templates stay tracked)
+benchmark/configs/local*.yaml
+benchmark/configs/*local*.yaml
+benchmark/configs/tiers.generated.yaml
+benchmark/real_data_manifest.tsv
+benchmark/results/*
+!benchmark/results/.gitkeep
+!benchmark/results/README.md
+# v0.1 published 16T three-way table (job 2312423)
+!benchmark/results/compare_pysam_rubam_samrust.fungal_mt35.csv
+!benchmark/results/compare_pysam_rubam_samrust.fungal_mt35.json
+
+# Slurm / HPC job logs (local paths)
+benchmark/logs/
+/-
+
+# Host-local Cargo registry mirror (see INSTALL.md)
+.cargo/config.toml
+.cargo/config
+
+# Worktrees
+.worktrees/
+worktrees/
+
+# Coverage / profiling
+*.profraw
+*.profdata
+perf.data*
+flamegraph.svg
+heaptrack.*
+
+# Local env
+.env
+.env.*
+!.env.example

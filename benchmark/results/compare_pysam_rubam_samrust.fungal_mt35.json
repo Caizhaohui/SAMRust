@@ -1,0 +1,840 @@
+{
+  "bam": "/hpcfs/fhome/caizhh/18_WJX_work/02_Genetic_variation_diversity/05_align/Mt-35-15d-1/Mt-35-15d-1.markdup.bam",
+  "metadata": {
+    "bcftools": "bcftools 1.23",
+    "benchmark_kind": "three_way_pysam_rubam_samrust",
+    "cargo": "cargo 1.89.0 (c24e10642 2025-06-23)",
+    "cpu_count": 24,
+    "cpu_model": "Intel(R) Xeon(R) Silver 4116 CPU @ 2.10GHz",
+    "date_utc": "2026-08-13T03:13:59.275701+00:00",
+    "filesystem": {
+      "f_bavail": 1986266644,
+      "f_blocks": 2945067774,
+      "f_frsize": 4194304
+    },
+    "git_commit": null,
+    "hostname": "bnode2",
+    "linux_kernel": "5.14.0-570.12.1.el9_6.x86_64",
+    "os": "Linux-5.14.0-570.12.1.el9_6.x86_64-x86_64-with-glibc2.34",
+    "pysam": "0.23.3",
+    "python": "3.12.13",
+    "ram_bytes": 67169689600,
+    "rubam": "0.3.13",
+    "rustc": "rustc 1.89.0 (29483883e 2025-08-04)",
+    "samrust": "0.1.0",
+    "samtools": "samtools 1.23",
+    "storage_type": "unknown",
+    "tmpdir": "/tmp",
+    "versions": {
+      "pysam": "0.23.3",
+      "rubam": "0.3.13",
+      "samrust": "0.1.0"
+    }
+  },
+  "min_bq": 0,
+  "region": {
+    "contig": "NC_016472.1",
+    "start": 0,
+    "stop": 100000
+  },
+  "repeats": 3,
+  "rows": [
+    {
+      "detail": {
+        "count": 111076
+      },
+      "gate_vs_pysam": "oracle",
+      "max_rss_kb": 28764,
+      "output_digest": "53d1975d0d44d694",
+      "threads": 1,
+      "tool": "pysam",
+      "wall_s": 0.11003407277166843,
+      "workload": "count"
+    },
+    {
+      "detail": {
+        "count": 111076,
+        "count_reads_nofilter": 111076
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 28764,
+      "output_digest": "1d3e51e760adf910",
+      "threads": 1,
+      "tool": "rubam",
+      "wall_s": 0.1336868479847908,
+      "workload": "count"
+    },
+    {
+      "detail": {
+        "count": 111076
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 28764,
+      "output_digest": "53d1975d0d44d694",
+      "threads": 1,
+      "tool": "samrust",
+      "wall_s": 0.06426030769944191,
+      "workload": "count"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": [
+          1834328,
+          2276056,
+          2202823,
+          1909527
+        ]
+      },
+      "gate_vs_pysam": "oracle",
+      "max_rss_kb": 53212,
+      "output_digest": "4cdac43b0abb7669",
+      "threads": 1,
+      "tool": "pysam",
+      "wall_s": 4.439887823536992,
+      "workload": "count_coverage"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": [
+          1834328,
+          2276056,
+          2202823,
+          1909527
+        ]
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 82396,
+      "output_digest": "4cdac43b0abb7669",
+      "threads": 1,
+      "tool": "rubam",
+      "wall_s": 0.1060660146176815,
+      "workload": "count_coverage"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": [
+          1834328,
+          2276056,
+          2202823,
+          1909527
+        ]
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 62236,
+      "output_digest": "4cdac43b0abb7669",
+      "threads": 1,
+      "tool": "samrust",
+      "wall_s": 0.15007118321955204,
+      "workload": "count_coverage"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sum": 8223988,
+        "sums": {
+          "depth": 8223988
+        }
+      },
+      "gate_vs_pysam": "oracle",
+      "max_rss_kb": 86620,
+      "output_digest": "94bc302fc977210f",
+      "threads": 1,
+      "tool": "pysam",
+      "wall_s": 1.017821403220296,
+      "workload": "depth"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sum": 8223988,
+        "sums": {
+          "depth": 8223988
+        }
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 86620,
+      "output_digest": "94bc302fc977210f",
+      "threads": 1,
+      "tool": "rubam",
+      "wall_s": 0.15862254425883293,
+      "workload": "depth"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sum": 8223988,
+        "sums": {
+          "depth": 8223988
+        }
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 86620,
+      "output_digest": "94bc302fc977210f",
+      "threads": 1,
+      "tool": "samrust",
+      "wall_s": 0.07572631351649761,
+      "workload": "depth"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": {
+          "A": 1833887,
+          "C": 2275426,
+          "G": 2202173,
+          "N": 1254,
+          "T": 1909069,
+          "depth": 8221809
+        }
+      },
+      "gate_vs_pysam": "oracle",
+      "max_rss_kb": 86620,
+      "output_digest": "cb8f1738ce0be412",
+      "threads": 1,
+      "tool": "pysam",
+      "wall_s": 51.029960399493575,
+      "workload": "pileup_counts"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": {
+          "A": 1833887,
+          "C": 2275426,
+          "G": 2202173,
+          "N": 1254,
+          "T": 1909069,
+          "depth": 8221809
+        }
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 91216,
+      "output_digest": "30272fc336b7c6df",
+      "threads": 1,
+      "tool": "rubam",
+      "wall_s": 0.2599267140030861,
+      "workload": "pileup_counts"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": {
+          "A": 1833887,
+          "C": 2275426,
+          "G": 2202173,
+          "N": 1254,
+          "T": 1909069,
+          "depth": 8221809
+        }
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 111184,
+      "output_digest": "cb8f1738ce0be412",
+      "threads": 1,
+      "tool": "samrust",
+      "wall_s": 0.17104555293917656,
+      "workload": "pileup_counts"
+    },
+    {
+      "detail": {
+        "count": 111076
+      },
+      "gate_vs_pysam": "oracle",
+      "max_rss_kb": 115024,
+      "output_digest": "53d1975d0d44d694",
+      "threads": 4,
+      "tool": "pysam",
+      "wall_s": 0.11631878651678562,
+      "workload": "count"
+    },
+    {
+      "detail": {
+        "count": 111076,
+        "count_reads_nofilter": 111076
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 115024,
+      "output_digest": "1d3e51e760adf910",
+      "threads": 4,
+      "tool": "rubam",
+      "wall_s": 0.1347008552402258,
+      "workload": "count"
+    },
+    {
+      "detail": {
+        "count": 111076
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 115024,
+      "output_digest": "53d1975d0d44d694",
+      "threads": 4,
+      "tool": "samrust",
+      "wall_s": 0.035145435482263565,
+      "workload": "count"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": [
+          1834328,
+          2276056,
+          2202823,
+          1909527
+        ]
+      },
+      "gate_vs_pysam": "oracle",
+      "max_rss_kb": 115024,
+      "output_digest": "4cdac43b0abb7669",
+      "threads": 4,
+      "tool": "pysam",
+      "wall_s": 4.441927820444107,
+      "workload": "count_coverage"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": [
+          1834328,
+          2276056,
+          2202823,
+          1909527
+        ]
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 115024,
+      "output_digest": "4cdac43b0abb7669",
+      "threads": 4,
+      "tool": "rubam",
+      "wall_s": 0.10537809692323208,
+      "workload": "count_coverage"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": [
+          1834328,
+          2276056,
+          2202823,
+          1909527
+        ]
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 115024,
+      "output_digest": "4cdac43b0abb7669",
+      "threads": 4,
+      "tool": "samrust",
+      "wall_s": 0.0876905582845211,
+      "workload": "count_coverage"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sum": 8223988,
+        "sums": {
+          "depth": 8223988
+        }
+      },
+      "gate_vs_pysam": "oracle",
+      "max_rss_kb": 115024,
+      "output_digest": "94bc302fc977210f",
+      "threads": 4,
+      "tool": "pysam",
+      "wall_s": 1.0185351520776749,
+      "workload": "depth"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sum": 8223988,
+        "sums": {
+          "depth": 8223988
+        }
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 115024,
+      "output_digest": "94bc302fc977210f",
+      "threads": 4,
+      "tool": "rubam",
+      "wall_s": 0.06804392859339714,
+      "workload": "depth"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sum": 8223988,
+        "sums": {
+          "depth": 8223988
+        }
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 115024,
+      "output_digest": "94bc302fc977210f",
+      "threads": 4,
+      "tool": "samrust",
+      "wall_s": 0.04529499635100365,
+      "workload": "depth"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": {
+          "A": 1833887,
+          "C": 2275426,
+          "G": 2202173,
+          "N": 1254,
+          "T": 1909069,
+          "depth": 8221809
+        }
+      },
+      "gate_vs_pysam": "oracle",
+      "max_rss_kb": 115024,
+      "output_digest": "cb8f1738ce0be412",
+      "threads": 4,
+      "tool": "pysam",
+      "wall_s": 50.94837304390967,
+      "workload": "pileup_counts"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": {
+          "A": 1833887,
+          "C": 2275426,
+          "G": 2202173,
+          "N": 1254,
+          "T": 1909069,
+          "depth": 8221809
+        }
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 115024,
+      "output_digest": "30272fc336b7c6df",
+      "threads": 4,
+      "tool": "rubam",
+      "wall_s": 0.12309660762548447,
+      "workload": "pileup_counts"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": {
+          "A": 1833887,
+          "C": 2275426,
+          "G": 2202173,
+          "N": 1254,
+          "T": 1909069,
+          "depth": 8221809
+        }
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 115024,
+      "output_digest": "cb8f1738ce0be412",
+      "threads": 4,
+      "tool": "samrust",
+      "wall_s": 0.10336215235292912,
+      "workload": "pileup_counts"
+    },
+    {
+      "detail": {
+        "count": 111076
+      },
+      "gate_vs_pysam": "oracle",
+      "max_rss_kb": 118280,
+      "output_digest": "53d1975d0d44d694",
+      "threads": 8,
+      "tool": "pysam",
+      "wall_s": 0.11750767193734646,
+      "workload": "count"
+    },
+    {
+      "detail": {
+        "count": 111076,
+        "count_reads_nofilter": 111076
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 118280,
+      "output_digest": "1d3e51e760adf910",
+      "threads": 8,
+      "tool": "rubam",
+      "wall_s": 0.13430002517998219,
+      "workload": "count"
+    },
+    {
+      "detail": {
+        "count": 111076
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 118280,
+      "output_digest": "53d1975d0d44d694",
+      "threads": 8,
+      "tool": "samrust",
+      "wall_s": 0.027465106919407845,
+      "workload": "count"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": [
+          1834328,
+          2276056,
+          2202823,
+          1909527
+        ]
+      },
+      "gate_vs_pysam": "oracle",
+      "max_rss_kb": 118280,
+      "output_digest": "4cdac43b0abb7669",
+      "threads": 8,
+      "tool": "pysam",
+      "wall_s": 4.447625184431672,
+      "workload": "count_coverage"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": [
+          1834328,
+          2276056,
+          2202823,
+          1909527
+        ]
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 118280,
+      "output_digest": "4cdac43b0abb7669",
+      "threads": 8,
+      "tool": "rubam",
+      "wall_s": 0.10422936826944351,
+      "workload": "count_coverage"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": [
+          1834328,
+          2276056,
+          2202823,
+          1909527
+        ]
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 118280,
+      "output_digest": "4cdac43b0abb7669",
+      "threads": 8,
+      "tool": "samrust",
+      "wall_s": 0.07441284693777561,
+      "workload": "count_coverage"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sum": 8223988,
+        "sums": {
+          "depth": 8223988
+        }
+      },
+      "gate_vs_pysam": "oracle",
+      "max_rss_kb": 118280,
+      "output_digest": "94bc302fc977210f",
+      "threads": 8,
+      "tool": "pysam",
+      "wall_s": 1.0211844686418772,
+      "workload": "depth"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sum": 8223988,
+        "sums": {
+          "depth": 8223988
+        }
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 118280,
+      "output_digest": "94bc302fc977210f",
+      "threads": 8,
+      "tool": "rubam",
+      "wall_s": 0.05182107724249363,
+      "workload": "depth"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sum": 8223988,
+        "sums": {
+          "depth": 8223988
+        }
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 118280,
+      "output_digest": "94bc302fc977210f",
+      "threads": 8,
+      "tool": "samrust",
+      "wall_s": 0.03828680329024792,
+      "workload": "depth"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": {
+          "A": 1833887,
+          "C": 2275426,
+          "G": 2202173,
+          "N": 1254,
+          "T": 1909069,
+          "depth": 8221809
+        }
+      },
+      "gate_vs_pysam": "oracle",
+      "max_rss_kb": 118280,
+      "output_digest": "cb8f1738ce0be412",
+      "threads": 8,
+      "tool": "pysam",
+      "wall_s": 50.69637889228761,
+      "workload": "pileup_counts"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": {
+          "A": 1833887,
+          "C": 2275426,
+          "G": 2202173,
+          "N": 1254,
+          "T": 1909069,
+          "depth": 8221809
+        }
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 118280,
+      "output_digest": "30272fc336b7c6df",
+      "threads": 8,
+      "tool": "rubam",
+      "wall_s": 0.09914442151784897,
+      "workload": "pileup_counts"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": {
+          "A": 1833887,
+          "C": 2275426,
+          "G": 2202173,
+          "N": 1254,
+          "T": 1909069,
+          "depth": 8221809
+        }
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 131148,
+      "output_digest": "cb8f1738ce0be412",
+      "threads": 8,
+      "tool": "samrust",
+      "wall_s": 0.08832806721329689,
+      "workload": "pileup_counts"
+    },
+    {
+      "detail": {
+        "count": 111076
+      },
+      "gate_vs_pysam": "oracle",
+      "max_rss_kb": 134988,
+      "output_digest": "53d1975d0d44d694",
+      "threads": 16,
+      "tool": "pysam",
+      "wall_s": 0.11761461570858955,
+      "workload": "count"
+    },
+    {
+      "detail": {
+        "count": 111076,
+        "count_reads_nofilter": 111076
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 134988,
+      "output_digest": "1d3e51e760adf910",
+      "threads": 16,
+      "tool": "rubam",
+      "wall_s": 0.1348089799284935,
+      "workload": "count"
+    },
+    {
+      "detail": {
+        "count": 111076
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 134988,
+      "output_digest": "53d1975d0d44d694",
+      "threads": 16,
+      "tool": "samrust",
+      "wall_s": 0.03277840092778206,
+      "workload": "count"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": [
+          1834328,
+          2276056,
+          2202823,
+          1909527
+        ]
+      },
+      "gate_vs_pysam": "oracle",
+      "max_rss_kb": 134988,
+      "output_digest": "4cdac43b0abb7669",
+      "threads": 16,
+      "tool": "pysam",
+      "wall_s": 4.471946395933628,
+      "workload": "count_coverage"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": [
+          1834328,
+          2276056,
+          2202823,
+          1909527
+        ]
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 134988,
+      "output_digest": "4cdac43b0abb7669",
+      "threads": 16,
+      "tool": "rubam",
+      "wall_s": 0.10635063052177429,
+      "workload": "count_coverage"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": [
+          1834328,
+          2276056,
+          2202823,
+          1909527
+        ]
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 134988,
+      "output_digest": "4cdac43b0abb7669",
+      "threads": 16,
+      "tool": "samrust",
+      "wall_s": 0.07562059536576271,
+      "workload": "count_coverage"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sum": 8223988,
+        "sums": {
+          "depth": 8223988
+        }
+      },
+      "gate_vs_pysam": "oracle",
+      "max_rss_kb": 134988,
+      "output_digest": "94bc302fc977210f",
+      "threads": 16,
+      "tool": "pysam",
+      "wall_s": 1.022217646241188,
+      "workload": "depth"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sum": 8223988,
+        "sums": {
+          "depth": 8223988
+        }
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 134988,
+      "output_digest": "94bc302fc977210f",
+      "threads": 16,
+      "tool": "rubam",
+      "wall_s": 0.04776100441813469,
+      "workload": "depth"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sum": 8223988,
+        "sums": {
+          "depth": 8223988
+        }
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 134988,
+      "output_digest": "94bc302fc977210f",
+      "threads": 16,
+      "tool": "samrust",
+      "wall_s": 0.04083327762782574,
+      "workload": "depth"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": {
+          "A": 1833887,
+          "C": 2275426,
+          "G": 2202173,
+          "N": 1254,
+          "T": 1909069,
+          "depth": 8221809
+        }
+      },
+      "gate_vs_pysam": "oracle",
+      "max_rss_kb": 134988,
+      "output_digest": "cb8f1738ce0be412",
+      "threads": 16,
+      "tool": "pysam",
+      "wall_s": 50.72880011796951,
+      "workload": "pileup_counts"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": {
+          "A": 1833887,
+          "C": 2275426,
+          "G": 2202173,
+          "N": 1254,
+          "T": 1909069,
+          "depth": 8221809
+        }
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 134988,
+      "output_digest": "30272fc336b7c6df",
+      "threads": 16,
+      "tool": "rubam",
+      "wall_s": 0.0926797203719616,
+      "workload": "pileup_counts"
+    },
+    {
+      "detail": {
+        "len": 100000,
+        "sums": {
+          "A": 1833887,
+          "C": 2275426,
+          "G": 2202173,
+          "N": 1254,
+          "T": 1909069,
+          "depth": 8221809
+        }
+      },
+      "gate_vs_pysam": "match",
+      "max_rss_kb": 142952,
+      "output_digest": "cb8f1738ce0be412",
+      "threads": 16,
+      "tool": "samrust",
+      "wall_s": 0.09018630906939507,
+      "workload": "pileup_counts"
+    }
+  ],
+  "tag": "fungal_mt35"
+}

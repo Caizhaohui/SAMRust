@@ -1,0 +1,20 @@
+[package]
+name = "samrust-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Core Rust library for SAMRust (pysam-compatible HTS access)"
+readme.workspace = true
+
+[dependencies]
+crossbeam-channel = { workspace = true }
+noodles = { workspace = true }
+rayon = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

@@ -1,0 +1,40 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/samrust-core",
+    "crates/samrust-python",
+    "crates/samrust-cli",
+]
+default-members = [
+    "crates/samrust-core",
+    "crates/samrust-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+license = "MIT"
+repository = "https://github.com/Caizhaohui/SAMRust"
+authors = ["SAMRust contributors"]
+description = "Rust-native, multi-threaded, pysam-compatible HTS processing for Linux/HPC"
+readme = "README.md"
+
+[workspace.dependencies]
+samrust-core = { path = "crates/samrust-core", version = "0.1.0" }
+thiserror = "2.0.20"
+clap = { version = "4.5", features = ["derive"] }
+tracing = "0.1.41"
+pyo3 = { version = "0.25.1", features = ["extension-module"] }
+# noodles: Rust-native BAM/SAM/VCF/CRAM I/O (pinned; upgrades need separate PR + re-benchmark).
+# M9 adds vcf/bcf/tabix; M11 adds cram/fasta on the existing noodles crate (not a new dependency).
+noodles = { version = "0.115", features = ["bam", "sam", "bgzf", "csi", "core", "vcf", "bcf", "tabix", "cram", "fasta"] }
+rayon = "1.12.0"
+crossbeam-channel = "0.5.16"
+numpy = "0.25.0"
+# M12 release gate: property tests for 0-based half-open Interval (dev-only).
+proptest = "1.6.0"
+
+[profile.release]
+lto = true
+codegen-units = 1

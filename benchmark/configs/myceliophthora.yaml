@@ -1,0 +1,9 @@
+# myceliophthora.yaml — real-data config template
+
+# Copy to a gitignored local file (e.g. myceliophthora.local.yaml) and fill paths.
+# Do not commit machine-specific HPC paths.
+
+reference_dir: /path/to/Myceliophthora_thermophila_ATCC42464
+raw_data_dir: /path/to/raw_fastq_project
+sample_metadata: /path/to/sampleID_meta.csv
+analysis_dir: /path/to/02_Genetic_variation_diversity

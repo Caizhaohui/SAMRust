@@ -1,0 +1,22 @@
+SAMRust
+=======
+
+Copyright (c) 2026 SAMRust contributors. Licensed under MIT (see LICENSE).
+
+This repository implements its own Rust/Python code. It does **not** copy
+substantial source from third-party projects. Behavior, APIs, and test oracles
+were inspected as follows:
+
+Reference inspected (behavior / architecture only — not copied):
+
+- pysam-developers/pysam — Python API shape, 0-based half-open fetch, count /
+  count_coverage / pileup filters, VariantFile field names.
+- victormar1/rubam — BAM analytics performance baseline (chunking, depth /
+  pileup). Used for runtime/RSS comparison, not as a source drop-in.
+- zaeleus/noodles — Rust-native BAM/CRAM/VCF codecs via the `noodles` crate
+  dependency (upstream crate, not vendored).
+- samtools / HTSlib / bcftools — CLI oracles (`view`, `depth`, `index`) and
+  CRAM fixture generation (`samtools view -C`).
+
+If substantial third-party code is ever transplanted, record license,
+attribution, and the source commit here before merge.

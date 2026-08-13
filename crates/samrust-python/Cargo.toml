@@ -1,0 +1,19 @@
+[package]
+name = "samrust-python"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "PyO3 bindings for SAMRust"
+readme.workspace = true
+
+[lib]
+name = "_samrust"
+crate-type = ["cdylib"]
+
+[dependencies]
+samrust-core = { workspace = true }
+pyo3 = { workspace = true }
+numpy = { workspace = true }

@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  linux-wheel:
+    name: manylinux x86_64 wheels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: x86_64
+          manylinux: auto
+          args: --release --out dist --interpreter 3.10 3.11 3.12 3.13
+
+      - name: Smoke-import wheel
+        run: |
+          pip install --find-links dist samrust
+          python -c "import samrust; print(samrust.__version__)"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          body: |
+            SAMRust v0.1 — Linux x86_64 manylinux wheels.
+
+            ```bash
+            pip install samrust-0.1.0-*.whl
+            ```
+
+            See INSTALL.md, COMPATIBILITY.md, and BENCHMARKS.md.
