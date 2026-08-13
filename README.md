@@ -2,10 +2,6 @@
 
 **面向 Linux / HPC 的 Rust-native、多线程、pysam 兼容 HTS 读写库。**
 
-> Correctness tracks **pysam**. Performance tracks **[rubam](https://github.com/victormar1/rubam)**.
->
-> 功能与结果对齐 pysam；运行效率对齐 rubam。rubam 没有的 API 在 16T 三方表填 **NA**，不静默跳过。
-
 当前版本 **v0.1.0**（2026-08-13）。Python 3.10–3.13，Linux x86_64。许可证 [MIT](LICENSE)。
 
 - 仓库：https://github.com/Caizhaohui/SAMRust
